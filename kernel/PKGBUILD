@@ -18,7 +18,7 @@ _srcname=linux-${pkgver%.0}
 source=(
   "https://cdn.kernel.org/pub/linux/kernel/v${pkgver%%.*}.x/${_srcname}.tar.xz"
   "https://cdn.kernel.org/pub/linux/kernel/v${pkgver%%.*}.x/${_srcname}.tar.sign"
-  "config.arch::https://gitlab.archlinux.org/archlinux/packaging/packages/linux/-/raw/main/config"
+  config.arch   # Arch's current kernel config, extracted by build.sh from linux-headers
   "0001-bore-cachy.patch::https://raw.githubusercontent.com/CachyOS/kernel-patches/master/${_series}/sched/0001-bore-cachy.patch"
   haven.config
 )

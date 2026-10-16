@@ -103,6 +103,16 @@ build_kernel() {
 
   rm -rf "$WORK/kernel"
   cp -a "$ROOT/kernel" "$WORK/kernel"
+
+  log "Fetching Arch's current kernel config (from the linux-headers package)..."
+  pacman -Sw --noconfirm linux-headers >/dev/null
+  local hdr tmp
+  hdr="$(ls -t /var/cache/pacman/pkg/linux-headers-[0-9]*.pkg.tar.zst | head -n1)"
+  tmp="$(mktemp -d)"
+  bsdtar -xf "$hdr" -C "$tmp" 'usr/lib/modules/*/build/.config'
+  install -m644 "$tmp"/usr/lib/modules/*/build/.config "$WORK/kernel/config.arch"
+  rm -rf "$tmp"
+  log "Base config: $(basename "$hdr")"
   chown -R builder: "$WORK/kernel"
 
   log "Importing kernel.org signing keys..."
