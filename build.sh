@@ -78,7 +78,21 @@ setup_host() {
   chown -R builder: "$WORK"
 }
 
-as_builder() { sudo -u builder -H bash -c "$*"; }
+# Run a command as the unprivileged build user. On failure in GitHub Actions,
+# post the last 40 lines of output to the run page (logs can be hard to reach).
+as_builder() {
+  local logf="$WORK/.last-command.log"
+  if sudo -u builder -H bash -c "$*" 2>&1 | tee "$logf"; then
+    return 0
+  fi
+  if [[ -n ${GITHUB_ACTIONS:-} ]]; then
+    local tail_txt cmd="$*"
+    cmd="${cmd:0:80}"; cmd="${cmd//,/%2C}"; cmd="${cmd//::/%3A%3A}"
+    tail_txt=$(tail -n 40 "$logf" | sed 's/%/%25/g; s/\r/%0D/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+    printf '::error title=Last output of: %s::%s\n' "$cmd" "$tail_txt"
+  fi
+  return 1
+}
 
 # ---------------------------------------------------------------------------
 # Kernel
@@ -92,7 +106,10 @@ build_kernel() {
   chown -R builder: "$WORK/kernel"
 
   log "Importing kernel.org signing keys..."
-  as_builder "gpg --auto-key-locate clear,wkd --locate-keys torvalds@kernel.org gregkh@kernel.org"
+  # WKD first; fall back to a public keyserver by fingerprint
+  as_builder "gpg --auto-key-locate clear,wkd --locate-keys torvalds@kernel.org gregkh@kernel.org" || \
+  as_builder "gpg --keyserver hkps://keyserver.ubuntu.com --recv-keys \
+      ABAF11C65A2970B130ABE3C479BE3E4300411886 647F28654894E3BD457199BE38DBBDC86092693E"
 
   log "Compiling linux-haven (this takes 30 minutes to a few hours)..."
   as_builder "cd '$WORK/kernel' && MAKEFLAGS='-j$(nproc)' makepkg -s --noconfirm --cleanbuild"
