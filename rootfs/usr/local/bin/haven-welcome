@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# Haven Welcome — first-login setup wizard (runs once per user).
+# Uses kdialog so it looks native on KDE Plasma. Re-run any time from the
+# app menu ("Haven Welcome") to change choices.
+set -uo pipefail
+
+MARKER="${XDG_CONFIG_HOME:-$HOME/.config}/haven/welcome-done"
+TITLE="Welcome to Haven OS"
+
+[[ ${1:-} == --force ]] || [[ ! -f $MARKER ]] || exit 0
+[[ -d /run/archiso ]] && LIVE=1 || LIVE=0
+
+kd() { kdialog --title "$TITLE" "$@"; }
+
+# --- 1. Welcome --------------------------------------------------------------
+if [[ $LIVE -eq 1 ]]; then
+  kd --yesno "You're running Haven OS live from USB.
+
+Nothing is saved until you install.
+
+Install Haven OS to this computer now?" \
+     --yes-label "Install Haven OS" --no-label "Keep trying it" \
+    && exec sudo -E calamares
+  exit 0
+fi
+
+kd --msgbox "Welcome to Haven OS!
+
+Haven is built for three things:
+
+  •  Playing your Windows games (Steam is ready to go)
+  •  Being simple to use
+  •  Keeping your data private: no telemetry, encrypted DNS,
+     a firewall, and a different network ID on every Wi-Fi.
+
+The next few questions take about a minute." || exit 0
+
+# --- 1b. Desktop layout ---------------------------------------------------------
+layout=$(kd --radiolist "How would you like your taskbar?" \
+  org.haven.taskbar.centred "Centred - like Windows 11 (recommended)" on \
+  org.haven.taskbar.left    "Start on the left - like Windows 10" off \
+  keep                      "Keep my current layout" off) || layout=keep
+if [[ $layout != keep ]]; then
+  plasma-apply-lookandfeel --apply "$layout" --resetLayout >/dev/null 2>&1 || \
+    kd --sorry "Couldn't change the layout. You can pick it later in System Settings > Global Theme."
+fi
+
+# --- 2. DNS provider ---------------------------------------------------------
+dns=$(kd --radiolist "Who should look up website names for you?
+Lookups are encrypted so your internet provider can't see them." \
+  quad9      "Quad9 — Switzerland, no logging, blocks malware (recommended)" on \
+  mullvad    "Mullvad — Sweden, no logging" off \
+  cloudflare "Cloudflare — fastest in most places" off \
+  network    "My network's DNS — use for school/work networks with filters" off) || dns=quad9
+
+# --- 3. Firewall ---------------------------------------------------------------
+if kd --yesno "Do you use Steam Remote Play, Steam Link, or copy games between PCs on your home network?
+
+(Choose No if you're not sure — everything else online works either way.)"; then
+  remote=on
+else
+  remote=off
+fi
+
+# --- 4. Maximum security -------------------------------------------------------
+security=off
+gpu_note=""
+lspci 2>/dev/null | grep -qi nvidia && gpu_note="
+
+WARNING: you have an NVIDIA graphics card. Its driver will not load in this mode, so games will run very slowly."
+if kd --yesno "Turn on Maximum Security mode?
+
+This locks the kernel so even an admin-level attacker can't change it while it runs. Most people don't need it.${gpu_note}" \
+   --yes-label "Turn on" --no-label "Leave off (recommended)"; then
+  security=on
+fi
+
+# --- 5. Extra apps -------------------------------------------------------------
+apps=$(kd --separate-output --checklist "Steam is already installed. Add anything else?" \
+  heroic   "Heroic — Epic Games, GOG and Amazon games" on \
+  lutris   "Lutris — Battle.net, EA, Ubisoft and other launchers" off \
+  protonup "ProtonUp-Qt — install Proton-GE for tricky games" on \
+  discord  "Discord" off \
+  obs      "OBS Studio — record and stream" off \
+  bottles  "Bottles — run Windows apps (not games)" off) || apps=""
+
+# --- Apply (one password prompt) ---------------------------------------------
+script=$(mktemp)
+cat > "$script" <<EOF
+set -e
+haven-settings dns $dns
+haven-settings remote-play $remote
+haven-settings max-security $security
+EOF
+pkexec bash "$script" || kd --error "Some settings couldn't be applied. You can run Haven Welcome again from the app menu."
+rm -f "$script"
+
+if [[ -n $apps ]]; then
+  flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+  declare -A ids=(
+    [heroic]=com.heroicgameslauncher.hgl
+    [lutris]=net.lutris.Lutris
+    [protonup]=net.davidotek.pupgui2
+    [discord]=com.discordapp.Discord
+    [obs]=com.obsproject.Studio
+    [bottles]=com.usebottles.bottles
+  )
+  to_install=()
+  while read -r a; do [[ -n $a ]] && to_install+=("${ids[$a]}"); done <<<"$apps"
+  konsole --hold -e flatpak install --user -y flathub "${to_install[@]}" &
+fi
+
+mkdir -p "$(dirname "$MARKER")"
+touch "$MARKER"
+
+kd --msgbox "You're all set!
+
+  •  Open Steam and sign in. Verified games just work. For any other
+     Windows game: Steam → Settings → Compatibility → 'Enable Steam
+     Play for all other titles'.
+  •  Other Windows programs: just double-click the .exe or .msi file.
+  •  Familiar shortcuts work: Win+E files, Win+R run, Win+I settings,
+     Win+Shift+S snip, Ctrl+Shift+Esc task manager, Win+L lock.
+  •  Updates: open Discover, or run 'haven-update' in a terminal.
+  •  Change these choices any time: App menu → Haven Welcome.
+
+Have fun!"

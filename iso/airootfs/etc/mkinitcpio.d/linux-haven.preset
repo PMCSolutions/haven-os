@@ -1,0 +1,7 @@
+# Live ISO preset — replaced by haven-postinstall on the installed system
+PRESETS=('archiso')
+
+ALL_kver='/boot/vmlinuz-linux-haven'
+archiso_config='/etc/mkinitcpio.conf.d/archiso.conf'
+
+archiso_image="/boot/initramfs-linux-haven.img"

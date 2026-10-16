@@ -1,0 +1,15 @@
+[Default Applications]
+application/x-ms-dos-executable=haven-windows-program.desktop
+application/x-msdownload=haven-windows-program.desktop
+application/vnd.microsoft.portable-executable=haven-windows-program.desktop
+application/x-msi=haven-windows-program.desktop
+application/x-ms-shortcut=haven-windows-program.desktop
+application/x-bat=haven-windows-program.desktop
+
+[Added Associations]
+application/x-ms-dos-executable=haven-windows-program.desktop;
+application/x-msdownload=haven-windows-program.desktop;
+application/vnd.microsoft.portable-executable=haven-windows-program.desktop;
+application/x-msi=haven-windows-program.desktop;
+application/x-ms-shortcut=haven-windows-program.desktop;
+application/x-bat=haven-windows-program.desktop;

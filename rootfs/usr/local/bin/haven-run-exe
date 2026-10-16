@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# haven-run-exe - open Windows programs on Haven OS with Wine.
+#
+#   haven-run-exe <file.exe|.msi|.lnk|.bat|.cmd>   run / install a Windows program
+#   haven-run-exe --c-drive                        open the Windows C: drive folder
+#   haven-run-exe --settings                       Windows compatibility settings (winecfg)
+#
+# Used when you double-click a Windows file in Dolphin or on the desktop.
+# Games are usually better added to Steam (Proton) - see the first-run message.
+set -uo pipefail
+
+export WINEPREFIX="${WINEPREFIX:-$HOME/.wine}"
+export WINEDEBUG="${WINEDEBUG:--all}"
+TITLE="Windows programs"
+MARKER="$WINEPREFIX/.haven-ready"
+
+say()  { kdialog --title "$TITLE" --msgbox "$1" 2>/dev/null || echo "$1"; }
+fail() { kdialog --title "$TITLE" --error "$1" 2>/dev/null || echo "Error: $1" >&2; exit 1; }
+
+command -v wine >/dev/null || fail "Wine is not installed. Install it with: sudo pacman -S wine-staging"
+
+# One-time set-up of the Windows environment (C: drive, registry, fonts)
+ensure_prefix() {
+  [[ -f $MARKER ]] && return 0
+
+  if [[ ${1:-} == ask ]]; then
+    kdialog --title "$TITLE" --yes-label "Continue" --no-label "Cancel" --yesno \
+"This is the first Windows program you've opened on Haven.
+
+Haven runs it with Wine, which acts like a mini Windows inside Haven.
+It gets its own C: drive (find it in the Start menu: \"Windows C: drive\").
+
+Good to know:
+  -  Windows programs can read your files, just as they could on Windows.
+     Only run programs from sources you trust.
+  -  For GAMES, Steam usually works better: in Steam choose
+     Games > Add a Non-Steam Game, then pick the game's .exe.
+     Steam then runs it with Proton, which is tuned for games.
+
+Set up Windows programs now? (about a minute, one time only)" 2>/dev/null || exit 0
+  fi
+
+  local popup
+  popup=$(kdialog --title "$TITLE" --progressbar "Setting up Windows compatibility..." 0 2>/dev/null) || popup=""
+  wineboot --init >/dev/null 2>&1
+  local rc=$?
+  if [[ -n $popup ]]; then
+    qdbus "${popup% *}" "${popup#* }" org.kde.kdialog.ProgressDialog.close >/dev/null 2>&1 || \
+      qdbus6 "${popup% *}" "${popup#* }" org.kde.kdialog.ProgressDialog.close >/dev/null 2>&1 || true
+  fi
+  [[ $rc -eq 0 && -d $WINEPREFIX/drive_c ]] || fail "Couldn't set up the Windows environment (wineboot failed). Try again, or run 'wineboot --init' in a terminal to see why."
+  touch "$MARKER"
+}
+
+case "${1:-}" in
+  --c-drive)
+    ensure_prefix
+    exec xdg-open "$WINEPREFIX/drive_c" ;;
+  --settings)
+    ensure_prefix
+    exec winecfg ;;
+  ""|-h|--help)
+    sed -n '2,10p' "$0"; exit 0 ;;
+esac
+
+file="$1"
+[[ -f $file ]] || fail "File not found:
+$file"
+file="$(realpath "$file")"
+
+ensure_prefix ask
+
+cd "$(dirname "$file")" || true
+ext="${file##*.}"
+case "${ext,,}" in
+  msi)     exec wine msiexec /i "$file" ;;
+  lnk)     exec wine start /unix "$file" ;;
+  bat|cmd) exec wine cmd /c "$(winepath -w "$file")" ;;
+  *)       exec wine "$file" ;;
+esac

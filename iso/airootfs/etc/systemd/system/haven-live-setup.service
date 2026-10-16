@@ -1,0 +1,12 @@
+[Unit]
+Description=Haven OS live session setup
+ConditionPathExists=/run/archiso
+Before=display-manager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/haven-live-setup
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

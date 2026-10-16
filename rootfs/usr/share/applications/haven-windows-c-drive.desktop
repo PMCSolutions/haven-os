@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Windows C: drive
+Comment=Files and installed programs for your Windows programs
+Exec=haven-run-exe --c-drive
+Icon=drive-harddisk
+Terminal=false
+Categories=System;Utility;
+Keywords=wine;windows;program files;c drive;

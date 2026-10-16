@@ -1,0 +1,158 @@
+# Haven OS custom kernel
+# Based on the structure of Arch Linux's official linux PKGBUILD.
+#
+# pkgver and _series are rewritten by kernel/fetch-kernel.sh before each build.
+
+pkgbase=linux-haven
+pkgver=0.0.0
+_series=0.0
+pkgrel=1
+pkgdesc='Haven OS kernel (BORE scheduler, NTSYNC, 1000Hz, hardened)'
+url='https://github.com/PMCSolutions/haven-os'
+arch=(x86_64)
+license=(GPL-2.0-only)
+makedepends=(bc cpio gettext libelf pahole perl python tar xz zstd)
+options=(!debug !strip)
+
+_srcname=linux-${pkgver%.0}
+source=(
+  "https://cdn.kernel.org/pub/linux/kernel/v${pkgver%%.*}.x/${_srcname}.tar.xz"
+  "https://cdn.kernel.org/pub/linux/kernel/v${pkgver%%.*}.x/${_srcname}.tar.sign"
+  "config.arch::https://gitlab.archlinux.org/archlinux/packaging/packages/linux/-/raw/main/config"
+  "0001-bore-cachy.patch::https://raw.githubusercontent.com/CachyOS/kernel-patches/master/${_series}/sched/0001-bore-cachy.patch"
+  haven.config
+)
+validpgpkeys=(
+  ABAF11C65A2970B130ABE3C479BE3E4300411886  # Linus Torvalds
+  647F28654894E3BD457199BE38DBBDC86092693E  # Greg Kroah-Hartman
+)
+# The kernel tarball is verified by its kernel.org PGP signature above.
+# Remaining sources are pinned at build time by `updpkgsums` in build.sh.
+sha256sums=(SKIP SKIP SKIP SKIP SKIP)
+
+export KBUILD_BUILD_HOST=haven
+export KBUILD_BUILD_USER=$pkgbase
+export KBUILD_BUILD_TIMESTAMP="$(date -Ru${SOURCE_DATE_EPOCH:+d @$SOURCE_DATE_EPOCH})"
+
+prepare() {
+  cd "$_srcname"
+
+  echo "Setting version..."
+  echo "-$pkgrel" > localversion.10-pkgrel
+  echo "${pkgbase#linux}" > localversion.20-pkgname
+
+  local src
+  for src in "${source[@]}"; do
+    src="${src%%::*}"
+    src="${src##*/}"
+    [[ $src = *.patch ]] || continue
+    echo "Applying patch $src..."
+    patch -Np1 < "../$src"
+  done
+
+  echo "Building config (Arch base + Haven fragment)..."
+  cp ../config.arch .config
+  scripts/kconfig/merge_config.sh -m .config ../haven.config
+  make olddefconfig
+
+  # Fail loudly if a key Haven option did not survive olddefconfig
+  local opt
+  for opt in CONFIG_NTSYNC CONFIG_SCHED_BORE CONFIG_HZ_1000 CONFIG_SECURITY_APPARMOR; do
+    if ! grep -qE "^${opt}=(y|m)" .config; then
+      echo "ERROR: ${opt} is not enabled in the final config" >&2
+      return 1
+    fi
+  done
+
+  make -s kernelrelease > version
+  echo "Prepared $pkgbase version $(<version)"
+}
+
+build() {
+  cd "$_srcname"
+  make all
+  make -C tools/bpf/bpftool vmlinux.h feature-clang-bpf-co-re=1 || true
+}
+
+_package() {
+  pkgdesc="The $pkgdesc kernel and modules"
+  depends=(coreutils initramfs kmod)
+  optdepends=(
+    'linux-firmware: firmware images needed for some devices'
+    'wireless-regdb: to set the correct wireless channels of your country'
+  )
+  provides=(KSMBD-MODULE NTSYNC-MODULE VIRTUALBOX-GUEST-MODULES WIREGUARD-MODULE)
+
+  cd "$_srcname"
+  local modulesdir="$pkgdir/usr/lib/modules/$(<version)"
+
+  echo "Installing boot image..."
+  # systemd/mkinitcpio pacman hooks copy this to /boot/vmlinuz-linux-haven
+  install -Dm644 "$(make -s image_name)" "$modulesdir/vmlinuz"
+  echo "$pkgbase" | install -Dm644 /dev/stdin "$modulesdir/pkgbase"
+
+  echo "Installing modules..."
+  ZSTD_CLEVEL=19 make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
+    DEPMOD=/doesnt/exist modules_install
+
+  rm -f "$modulesdir/build"
+}
+
+_package-headers() {
+  pkgdesc="Headers and scripts for building modules (e.g. NVIDIA DKMS) for the $pkgdesc kernel"
+  depends=(pahole)
+
+  cd "$_srcname"
+  local builddir="$pkgdir/usr/lib/modules/$(<version)/build"
+
+  echo "Installing build files..."
+  install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
+    localversion.* version vmlinux
+  install -Dt "$builddir/kernel" -m644 kernel/Makefile
+  install -Dt "$builddir/arch/x86" -m644 arch/x86/Makefile
+  cp -t "$builddir" -a scripts
+
+  [[ -f tools/objtool/objtool ]] && install -Dt "$builddir/tools/objtool" tools/objtool/objtool
+  [[ -f tools/bpf/resolve_btfids/resolve_btfids ]] && \
+    install -Dt "$builddir/tools/bpf/resolve_btfids" tools/bpf/resolve_btfids/resolve_btfids
+
+  echo "Installing headers..."
+  cp -t "$builddir" -a include
+  cp -t "$builddir/arch/x86" -a arch/x86/include
+  install -Dt "$builddir/arch/x86/kernel" -m644 arch/x86/kernel/asm-offsets.s
+  install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
+  install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
+  install -Dt "$builddir/drivers/media/i2c" -m644 drivers/media/i2c/msp3400-driver.h
+  install -Dt "$builddir/drivers/media/usb/dvb-usb" -m644 drivers/media/usb/dvb-usb/*.h
+  install -Dt "$builddir/drivers/media/dvb-frontends" -m644 drivers/media/dvb-frontends/*.h
+  install -Dt "$builddir/drivers/media/tuners" -m644 drivers/media/tuners/*.h
+  install -Dt "$builddir/drivers/iio/common/hid-sensors" -m644 drivers/iio/common/hid-sensors/*.h
+  [[ -f tools/bpf/bpftool/vmlinux.h ]] && install -Dt "$builddir" -m644 tools/bpf/bpftool/vmlinux.h
+
+  echo "Installing Kconfig files..."
+  find . -name 'Kconfig*' -exec install -Dm644 {} "$builddir/{}" \;
+
+  echo "Removing unneeded architectures..."
+  local a
+  for a in "$builddir"/arch/*/; do
+    [[ $a = */x86/ ]] && continue
+    rm -r "$a"
+  done
+
+  echo "Removing documentation, broken symlinks and object files..."
+  rm -rf "$builddir/Documentation"
+  find -L "$builddir" -type l -delete
+  find "$builddir" -type f -name '*.o' -delete
+
+  echo "Adding symlink..."
+  mkdir -p "$pkgdir/usr/src"
+  ln -sr "$builddir" "$pkgdir/usr/src/$pkgbase"
+}
+
+pkgname=("$pkgbase" "$pkgbase-headers")
+for _p in "${pkgname[@]}"; do
+  eval "package_$_p() {
+    $(declare -f "_package${_p#$pkgbase}")
+    _package${_p#$pkgbase}
+  }"
+done

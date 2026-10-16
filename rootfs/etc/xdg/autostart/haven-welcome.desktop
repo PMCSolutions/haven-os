@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Haven Welcome
+Exec=haven-welcome
+Icon=preferences-system
+NoDisplay=true
+X-KDE-autostart-phase=2

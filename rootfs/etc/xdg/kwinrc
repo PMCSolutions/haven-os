@@ -1,0 +1,12 @@
+[org.kde.kdecoration2]
+# Minimise, maximise, close on the right - like Windows
+ButtonsOnLeft=
+ButtonsOnRight=IAX
+
+[Windows]
+# Dragging a window to the screen edge snaps it, like Windows Snap
+ElectricBorderMaximize=true
+ElectricBorderTiling=true
+
+[WindowSwitcher]
+LayoutName=thumbnail_grid

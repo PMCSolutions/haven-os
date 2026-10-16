@@ -1,0 +1,115 @@
+# ===== Haven OS package list =====
+
+# --- Core system + custom kernel ---
+base
+base-devel
+linux-haven
+linux-haven-headers
+linux-firmware
+amd-ucode
+intel-ucode
+mkinitcpio
+mkinitcpio-archiso
+sof-firmware
+btrfs-progs
+dosfstools
+exfatprogs
+ntfs-3g
+cryptsetup
+efibootmgr
+sudo
+zram-generator
+power-profiles-daemon
+fwupd
+
+# --- Installer (built from AUR by build.sh) ---
+calamares
+ckbcomp
+kpmcore
+
+# --- Desktop: KDE Plasma ---
+plasma-meta
+sddm
+konsole
+dolphin
+kate
+ark
+spectacle
+gwenview
+okular
+kcalc
+partitionmanager
+discover
+packagekit-qt6
+flatpak
+xdg-desktop-portal-kde
+kdialog
+plasma-systemmonitor
+xdg-utils
+noto-fonts
+noto-fonts-cjk
+noto-fonts-emoji
+ttf-liberation
+ttf-dejavu
+
+# --- Network, audio, Bluetooth ---
+networkmanager
+pipewire
+pipewire-pulse
+pipewire-alsa
+pipewire-jack
+wireplumber
+bluez
+bluez-utils
+
+# --- Privacy & security ---
+firewalld
+apparmor
+firefox
+keepassxc
+
+# --- Graphics drivers (Vulkan for DXVK/VKD3D) ---
+mesa
+lib32-mesa
+vulkan-radeon
+lib32-vulkan-radeon
+vulkan-intel
+lib32-vulkan-intel
+vulkan-icd-loader
+lib32-vulkan-icd-loader
+# NVIDIA (Turing/RTX 20 and newer). Removed automatically on install if no NVIDIA GPU.
+nvidia-open-dkms
+nvidia-utils
+lib32-nvidia-utils
+dkms
+
+# --- Windows game & app compatibility ---
+steam
+wine-staging
+wine-mono
+wine-gecko
+winetricks
+gamemode
+lib32-gamemode
+gamescope
+mangohud
+lib32-mangohud
+# Common runtime libraries many Windows games/launchers expect
+lib32-pipewire
+lib32-libpulse
+lib32-gnutls
+lib32-openal
+lib32-sdl2-compat
+lib32-gst-plugins-base-libs
+gst-plugins-good
+gst-libav
+# Controllers: Steam ships udev rules for Steam, Xbox and PlayStation pads
+
+# --- Everyday tools ---
+git
+nano
+htop
+fastfetch
+unzip
+p7zip
+rsync

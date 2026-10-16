@@ -1,0 +1,160 @@
+name: Build Haven OS
+
+# Runs when you push a version tag (git tag v0.1.4 && git push --tags),
+# or manually: Actions tab > Build Haven OS > Run workflow.
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+env:
+  BUILD_DIR: /mnt/haven   # the runner's large spare disk (about 70 GB)
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Quick sanity check (a few minutes): every ISO package exists
+  # ---------------------------------------------------------------------------
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check package list
+        run: ./build.sh check
+
+  # ---------------------------------------------------------------------------
+  # 2. Compile the linux-haven kernel (2-3 hours)
+  # ---------------------------------------------------------------------------
+  kernel:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/share/swift
+          sudo docker image prune --all --force
+          df -h / /mnt
+
+      - name: Prepare build area
+        run: |
+          sudo mkdir -p "$BUILD_DIR"
+          sudo chown "$USER" "$BUILD_DIR"
+          rsync -a --exclude .git ./ "$BUILD_DIR/"
+
+      - name: Build kernel
+        working-directory: ${{ env.BUILD_DIR }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_SIGN_KEY: ${{ secrets.GPG_SIGN_KEY }}
+        run: ./build.sh kernel
+
+      - name: Upload kernel packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-packages
+          path: ${{ env.BUILD_DIR }}/out/repo/*.pkg.tar.zst
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # 3. Build the installer packages and the ISO (about 1 hour)
+  # ---------------------------------------------------------------------------
+  iso:
+    needs: kernel
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/share/swift
+          sudo docker image prune --all --force
+
+      - name: Prepare build area
+        run: |
+          sudo mkdir -p "$BUILD_DIR"
+          sudo chown "$USER" "$BUILD_DIR"
+          rsync -a --exclude .git ./ "$BUILD_DIR/"
+          mkdir -p "$BUILD_DIR/out/repo"
+
+      - name: Download kernel packages
+        uses: actions/download-artifact@v4
+        with:
+          name: kernel-packages
+          path: ${{ env.BUILD_DIR }}/out/repo
+
+      - name: Build installer and ISO
+        working-directory: ${{ env.BUILD_DIR }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_SIGN_KEY: ${{ secrets.GPG_SIGN_KEY }}
+        run: ./build.sh installer-iso
+
+      # GitHub release files are limited to 2 GB, so the ISO is split into parts
+      - name: Prepare release files
+        run: |
+          mkdir -p /mnt/release
+          cd "$BUILD_DIR/out"
+          iso=$(ls *.iso | head -n1)
+          cp "$iso.sha256" /mnt/release/
+          split -b 1900M -d -a 1 "$iso" "/mnt/release/$iso.part"
+          ls -lh /mnt/release
+          {
+            echo "## Download"
+            echo "Download **all** the \`.part\` files, then join them into the ISO:"
+            echo
+            echo "**Windows** (Command Prompt, in your Downloads folder):"
+            echo '```'
+            parts=$(cd /mnt/release && ls "$iso".part* | tr '\n' '+' | sed 's/+$//')
+            echo "copy /b $parts $iso"
+            echo '```'
+            echo "**Linux / macOS:**"
+            echo '```'
+            echo "cat $iso.part* > $iso && sha256sum -c $iso.sha256"
+            echo '```'
+            echo "Then write it to a USB stick with Rufus (DD image mode) or Ventoy."
+          } > /mnt/release/NOTES.md
+
+      - name: Upload ISO (Actions artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: haven-os-iso
+          path: |
+            ${{ env.BUILD_DIR }}/out/*.iso
+            ${{ env.BUILD_DIR }}/out/*.sha256
+          compression-level: 0
+          retention-days: 30
+
+      # Installed systems fetch kernel updates from the "repo" release
+      - name: Publish package repository
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: repo
+          name: Haven package repository
+          body: Package repository used by installed Haven OS systems for updates. Not for direct download.
+          files: |
+            ${{ env.BUILD_DIR }}/out/repo/*.pkg.tar.zst
+            ${{ env.BUILD_DIR }}/out/repo/*.sig
+            ${{ env.BUILD_DIR }}/out/repo/haven.db
+            ${{ env.BUILD_DIR }}/out/repo/haven.db.tar.gz
+            ${{ env.BUILD_DIR }}/out/repo/haven.files
+            ${{ env.BUILD_DIR }}/out/repo/haven.files.tar.gz
+
+      - name: Publish ISO release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Haven OS ${{ github.ref_name }}
+          body_path: /mnt/release/NOTES.md
+          files: |
+            /mnt/release/*.part*
+            /mnt/release/*.sha256

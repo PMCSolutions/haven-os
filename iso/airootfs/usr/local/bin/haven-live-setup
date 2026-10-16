@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Prepares the live USB session: a passwordless 'haven' user that logs in
+# automatically, with an "Install Haven OS" icon on the desktop.
+set -euo pipefail
+
+[[ -d /run/archiso ]] || exit 0
+
+if ! id haven &>/dev/null; then
+  useradd -m -G wheel,audio,video,input,gamemode -s /bin/bash haven
+  passwd -d haven
+fi
+
+install -Dm440 /dev/stdin /etc/sudoers.d/10-haven-live <<'EOF'
+haven ALL=(ALL) NOPASSWD: ALL
+EOF
+
+install -Dm644 /dev/stdin /etc/sddm.conf.d/10-haven-live.conf <<'EOF'
+[Autologin]
+User=haven
+Session=plasma
+EOF
+
+desktop=/home/haven/Desktop
+install -d -o haven -g haven "$desktop"
+install -m755 -o haven -g haven /dev/stdin "$desktop/install-haven.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Install Haven OS
+Comment=Install Haven OS to this computer
+Exec=sudo -E calamares
+Icon=system-software-install
+Terminal=false
+EOF
+
+# Pick the right GPU driver set for the live session
+if ! lspci | grep -qi nvidia; then
+  echo "blacklist nvidia" > /etc/modprobe.d/haven-live-no-nvidia.conf
+fi

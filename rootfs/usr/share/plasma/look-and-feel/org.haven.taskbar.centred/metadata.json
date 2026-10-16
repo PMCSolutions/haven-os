@@ -1,0 +1,12 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [ { "Name": "Haven OS" } ],
+        "Category": "",
+        "Description": "Dark theme with a centred taskbar, like Windows 11",
+        "Id": "org.haven.taskbar.centred",
+        "License": "GPL-2.0+",
+        "Name": "Haven - centred taskbar",
+        "Version": "1.0"
+    }
+}

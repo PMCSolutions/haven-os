@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Haven Welcome
+Comment=Privacy, firewall and gaming setup
+Exec=haven-welcome --force
+Icon=preferences-system
+Categories=Settings;System;

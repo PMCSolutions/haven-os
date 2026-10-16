@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Runs inside the newly installed system (chroot) from Calamares, after the
+# live image has been copied to disk. Turns the live image into a normal install.
+set -euo pipefail
+log() { echo "[haven-postinstall] $*"; }
+
+log "Removing live-session configuration..."
+systemctl disable haven-live-setup.service 2>/dev/null || true
+rm -f /etc/systemd/system/haven-live-setup.service \
+      /etc/systemd/system/multi-user.target.wants/haven-live-setup.service \
+      /usr/local/bin/haven-live-setup \
+      /etc/sudoers.d/10-haven-live \
+      /etc/sddm.conf.d/10-haven-live.conf \
+      /etc/modprobe.d/haven-live-no-nvidia.conf \
+      /etc/mkinitcpio.conf.d/archiso.conf
+userdel -r haven 2>/dev/null || true
+
+log "Initialising package signing keys..."
+pacman-key --init
+pacman-key --populate archlinux
+if [[ -f /usr/share/haven/haven-signing.asc ]]; then
+  pacman-key --add /usr/share/haven/haven-signing.asc
+  pacman-key --lsign-key "$(cat /usr/share/haven/haven-signing.keyid)"
+fi
+
+log "Installing kernel image..."
+kver_dir=$(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d -name '*haven*' | sort -V | tail -n1)
+install -Dm644 "$kver_dir/vmlinuz" /boot/vmlinuz-linux-haven
+
+cat > /etc/mkinitcpio.d/linux-haven.preset <<'EOF'
+ALL_kver="/boot/vmlinuz-linux-haven"
+PRESETS=('default' 'fallback')
+default_image="/boot/initramfs-linux-haven.img"
+fallback_image="/boot/initramfs-linux-haven-fallback.img"
+fallback_options="-S autodetect"
+EOF
+
+log "Configuring graphics drivers..."
+if lspci | grep -qi nvidia; then
+  echo "options nvidia_drm modeset=1 fbdev=1" > /etc/modprobe.d/haven-nvidia.conf
+else
+  pacman -Rns --noconfirm nvidia-open-dkms nvidia-utils lib32-nvidia-utils 2>/dev/null || true
+fi
+
+log "Removing installer..."
+pacman -Rns --noconfirm calamares ckbcomp mkinitcpio-archiso 2>/dev/null || true
+rm -f /etc/xdg/autostart/calamares*.desktop /usr/share/applications/calamares.desktop
+
+log "Enabling services..."
+systemctl enable NetworkManager systemd-resolved firewalld apparmor bluetooth \
+  sddm power-profiles-daemon fstrim.timer systemd-timesyncd
+ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+
+log "Saving default Haven settings..."
+install -Dm644 /dev/stdin /etc/haven/settings.conf <<'EOF'
+DNS=quad9
+REMOTE_PLAY=off
+MAX_SECURITY=off
+EOF
+
+log "Done."

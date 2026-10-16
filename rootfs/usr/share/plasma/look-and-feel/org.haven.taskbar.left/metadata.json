@@ -1,0 +1,12 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [ { "Name": "Haven OS" } ],
+        "Category": "",
+        "Description": "Dark theme with Start on the left, like Windows 10",
+        "Id": "org.haven.taskbar.left",
+        "License": "GPL-2.0+",
+        "Name": "Haven - classic taskbar",
+        "Version": "1.0"
+    }
+}

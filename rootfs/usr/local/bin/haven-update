@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# haven-update — update the whole system in one go
+set -euo pipefail
+
+echo "==> Updating system packages and the Haven kernel..."
+sudo pacman -Syu
+
+if command -v flatpak >/dev/null; then
+  echo "==> Updating Flatpak apps..."
+  flatpak update -y
+fi
+
+echo "==> Re-applying your Haven settings..."
+sudo haven-settings reapply >/dev/null
+
+if [[ -e /var/run/reboot-required ]] || \
+   [[ ! -d /usr/lib/modules/$(uname -r) ]]; then
+  echo
+  echo "A new kernel was installed — restart when convenient."
+fi
+echo "Done."

@@ -1,0 +1,23 @@
+[options]
+HoldPkg     = pacman glibc
+Architecture = auto
+ParallelDownloads = 5
+Color
+ILoveCandy
+SigLevel    = Required DatabaseOptional
+LocalFileSigLevel = Optional
+
+# Haven OS packages (custom kernel, installer). Filled in by build.sh.
+[haven]
+SigLevel = @HAVEN_SIGLEVEL@
+Server = @HAVEN_SERVER@
+
+[core]
+Include = /etc/pacman.d/mirrorlist
+
+[extra]
+Include = /etc/pacman.d/mirrorlist
+
+# 32-bit libraries — required by Steam and most Windows games
+[multilib]
+Include = /etc/pacman.d/mirrorlist

@@ -1,0 +1,35 @@
+---
+componentName: haven
+
+welcomeStyleCalamares: false
+welcomeExpandingLogo: true
+windowExpanding: normal
+windowSize: 1024px,640px
+windowPlacement: center
+sidebar: widget
+navigation: widget
+
+strings:
+  productName: "@OS_NAME@"
+  shortProductName: "Haven"
+  version: "@OS_VERSION@"
+  shortVersion: "@OS_VERSION@"
+  versionedName: "@OS_NAME@ @OS_VERSION@"
+  shortVersionedName: "Haven @OS_VERSION@"
+  bootloaderEntryName: "Haven OS"
+  productUrl: "https://github.com/PMCSolutions/haven-os"
+  supportUrl: "https://github.com/PMCSolutions/haven-os/issues"
+
+images:
+  productLogo: "logo.png"
+  productIcon: "logo.png"
+  productWelcome: "welcome.png"
+
+slideshow: "show.qml"
+slideshowAPI: 2
+
+style:
+  SidebarBackground: "#0f1720"
+  SidebarText: "#e6edf3"
+  SidebarTextCurrent: "#ffffff"
+  SidebarBackgroundCurrent: "#1f6feb"

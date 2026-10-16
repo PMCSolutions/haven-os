@@ -1,0 +1,54 @@
+# Haven OS: Windows-style keyboard shortcuts (system-wide defaults).
+# Each user can change them in System Settings > Keyboard > Shortcuts.
+# Format:  Action=current shortcut(s),default shortcut(s),description
+# Several shortcuts for one action are separated by a tab.
+
+[kwin]
+# Win+Up maximises, Win+Down minimises (Win+Left/Right snap is a Plasma default)
+Window Maximize=Meta+Up,Meta+PgUp,Maximize Window
+Window Minimize=Meta+Down,Meta+PgDown,Minimize Window
+Window Quick Tile Top=none,Meta+Up,Quick Tile Window to the Top
+Window Quick Tile Bottom=none,Meta+Down,Quick Tile Window to the Bottom
+# Win+D shows the desktop, Win+Tab opens task view
+Show Desktop=Meta+D,Meta+D,Peek at Desktop
+Overview=Meta+Tab,Meta+W,Toggle Overview
+# Alt+F4 closes, Alt+Tab switches (Plasma defaults, listed for clarity)
+Window Close=Alt+F4,Alt+F4,Close Window
+Walk Through Windows=Alt+Tab,Alt+Tab,Walk Through Windows
+
+[ksmserver]
+# Win+L locks the screen
+Lock Session=Meta+L	Screensaver,Meta+L	Screensaver,Lock Session
+
+[services][org.kde.dolphin.desktop]
+# Win+E opens File Explorer (Dolphin)
+_launch=Meta+E
+
+[services][org.kde.krunner.desktop]
+# Win+R opens Run (KRunner), Alt+Space still works
+_launch=Meta+R	Alt+Space	Alt+F2	Search
+
+[services][org.kde.plasma-systemmonitor.desktop]
+# Ctrl+Shift+Esc opens Task Manager (System Monitor)
+_launch=Ctrl+Shift+Esc	Meta+Esc
+
+[services][systemsettings.desktop]
+# Win+I opens Settings
+_launch=Meta+I
+
+[services][org.kde.spectacle.desktop]
+# Win+Shift+S snips a region; Print Screen takes a full screenshot
+RectangularRegionScreenShot=Meta+Shift+S	Meta+Shift+Print
+_launch=Print
+
+[services][org.kde.plasma.emojier.desktop]
+# Win+. opens the emoji picker
+_launch=Meta+.	Meta+Ctrl+Alt+Shift+Space
+
+[services][org.kde.konsole.desktop]
+# Ctrl+Alt+T opens a terminal
+_launch=Ctrl+Alt+T
+
+[plasmashell]
+# Win+V opens clipboard history
+show-on-mouse-pos=Meta+V,Meta+V,Show Clipboard Items at Mouse Position

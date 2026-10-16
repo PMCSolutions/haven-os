@@ -1,0 +1,7 @@
+# Don't index the contents of users' files by default (privacy + performance
+# while gaming). File-name search still works.
+[Basic Settings]
+Indexing-Enabled=true
+
+[General]
+only basic indexing=true

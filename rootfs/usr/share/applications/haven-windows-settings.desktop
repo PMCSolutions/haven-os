@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Windows Program Settings
+Comment=Windows version, drives, graphics and audio for Windows programs (winecfg)
+Exec=haven-run-exe --settings
+Icon=wine
+Terminal=false
+Categories=Settings;System;
+Keywords=wine;winecfg;windows;compatibility;

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Windows Program
+GenericName=Run Windows programs
+Comment=Run or install a Windows program (.exe, .msi) with Wine
+Exec=haven-run-exe %f
+Icon=wine
+Terminal=false
+NoDisplay=true
+Categories=System;Emulator;
+MimeType=application/x-ms-dos-executable;application/x-msdownload;application/vnd.microsoft.portable-executable;application/x-msi;application/x-ms-shortcut;application/x-bat;application/x-wine-extension-msp;

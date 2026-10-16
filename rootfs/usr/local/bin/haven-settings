@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# haven-settings — apply Haven OS system settings (run as root)
+#
+#   haven-settings dns <quad9|mullvad|cloudflare|network>
+#   haven-settings remote-play <on|off>
+#   haven-settings max-security <on|off>
+#   haven-settings reapply          # re-apply saved choices (used after updates)
+#   haven-settings status
+set -euo pipefail
+
+STATE=/etc/haven/settings.conf
+RESOLVED=/etc/systemd/resolved.conf.d/90-haven.conf
+ZONE=haven
+
+die() { echo "haven-settings: $*" >&2; exit 1; }
+[[ $EUID -eq 0 ]] || die "must be run as root (try: sudo haven-settings $*)"
+
+mkdir -p /etc/haven
+touch "$STATE"
+
+save() {  # save KEY VALUE
+  if grep -q "^$1=" "$STATE"; then
+    sed -i "s|^$1=.*|$1=$2|" "$STATE"
+  else
+    echo "$1=$2" >> "$STATE"
+  fi
+}
+get() { grep -m1 "^$1=" "$STATE" | cut -d= -f2- || true; }
+
+set_dns() {
+  local servers dot
+  case "$1" in
+    quad9)
+      servers="9.9.9.9#dns.quad9.net 149.112.112.112#dns.quad9.net 2620:fe::fe#dns.quad9.net 2620:fe::9#dns.quad9.net"
+      dot=yes ;;
+    mullvad)
+      servers="194.242.2.2#dns.mullvad.net 2a07:e340::2#dns.mullvad.net"
+      dot=yes ;;
+    cloudflare)
+      servers="1.1.1.1#cloudflare-dns.com 1.0.0.1#cloudflare-dns.com 2606:4700:4700::1111#cloudflare-dns.com"
+      dot=yes ;;
+    network)
+      servers=""
+      dot=opportunistic ;;
+    *) die "unknown DNS provider '$1' (quad9|mullvad|cloudflare|network)" ;;
+  esac
+
+  {
+    echo "# Managed by haven-settings — provider: $1"
+    echo "[Resolve]"
+    echo "DNS=$servers"
+    echo "DNSOverTLS=$dot"
+    echo "DNSSEC=allow-downgrade"
+    echo "FallbackDNS="
+    [[ -n $servers ]] && echo "Domains=~."
+    echo "LLMNR=no"
+    echo "MulticastDNS=no"
+  } > "$RESOLVED"
+
+  save DNS "$1"
+  systemctl try-restart systemd-resolved || true
+  echo "DNS provider set to $1"
+}
+
+set_remote_play() {
+  local action
+  case "$1" in
+    on)  action=--add-service ;;
+    off) action=--remove-service ;;
+    *)   die "remote-play expects on|off" ;;
+  esac
+  local svc
+  for svc in steam-streaming steam-lan-transfer; do
+    firewall-cmd --permanent --zone="$ZONE" "$action=$svc" >/dev/null 2>&1 || true
+  done
+  firewall-cmd --reload >/dev/null 2>&1 || true
+  save REMOTE_PLAY "$1"
+  echo "Steam Remote Play / LAN transfers: $1"
+}
+
+set_max_security() {
+  local entries=(/boot/loader/entries/*.conf /efi/loader/entries/*.conf)
+  local f found=0
+  for f in "${entries[@]}"; do
+    [[ -f $f ]] || continue
+    found=1
+    sed -i 's/ lockdown=integrity//g' "$f"
+    if [[ $1 == on ]]; then
+      sed -i '/^options / s/$/ lockdown=integrity/' "$f"
+    fi
+  done
+  [[ $found -eq 1 ]] || echo "Warning: no systemd-boot entries found; add 'lockdown=integrity' to your kernel command line manually."
+  save MAX_SECURITY "$1"
+  echo "Maximum security mode: $1 (takes effect after reboot)"
+  if [[ $1 == on ]] && lspci 2>/dev/null | grep -qi 'nvidia'; then
+    echo "NOTE: NVIDIA drivers are unsigned DKMS modules and will NOT load in maximum security mode."
+  fi
+}
+
+case "${1:-}" in
+  dns)          set_dns "${2:?provider required}" ;;
+  remote-play)  set_remote_play "${2:?on|off required}" ;;
+  max-security) set_max_security "${2:?on|off required}" ;;
+  reapply)
+    [[ -n $(get DNS) ]] && set_dns "$(get DNS)"
+    [[ -n $(get REMOTE_PLAY) ]] && set_remote_play "$(get REMOTE_PLAY)"
+    [[ -n $(get MAX_SECURITY) ]] && set_max_security "$(get MAX_SECURITY)"
+    true ;;
+  status)
+    echo "DNS provider:      $(get DNS || true)"
+    echo "Remote Play:       $(get REMOTE_PLAY || true)"
+    echo "Max security:      $(get MAX_SECURITY || true)"
+    echo "NTSYNC device:     $([[ -e /dev/ntsync ]] && echo present || echo missing)"
+    echo "Kernel:            $(uname -r)"
+    resolvectl status 2>/dev/null | grep -E 'DNS Servers|DNSOverTLS' | head -n 3 || true ;;
+  *)
+    sed -n '2,9p' "$0"; exit 1 ;;
+esac

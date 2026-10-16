@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<zone target="default">
+  <short>Haven</short>
+  <description>Haven OS default: block all unsolicited incoming connections. Outgoing traffic (games, browsing, Steam) is unaffected. Steam Remote Play and LAN game hosting can be allowed in Haven Welcome.</description>
+  <service name="dhcpv6-client"/>
+  <forward/>
+</zone>

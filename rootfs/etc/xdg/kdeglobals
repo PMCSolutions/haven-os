@@ -1,0 +1,15 @@
+[General]
+ColorScheme=BreezeDark
+
+[Icons]
+Theme=breeze-dark
+
+[KDE]
+# Haven's Windows 11-style layout is the default for new users.
+# Haven Welcome lets each user pick the classic (Windows 10-style) layout instead.
+LookAndFeelPackage=org.haven.taskbar.centred
+# Double-click to open files and folders, like Windows
+SingleClick=false
+
+[KFileDialog Settings]
+Show hidden files=false
