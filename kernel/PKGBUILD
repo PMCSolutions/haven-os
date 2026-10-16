@@ -41,13 +41,23 @@ prepare() {
   echo "-$pkgrel" > localversion.10-pkgrel
   echo "${pkgbase#linux}" > localversion.20-pkgname
 
-  local src
+  local src bore=1
   for src in "${source[@]}"; do
     src="${src%%::*}"
     src="${src##*/}"
     [[ $src = *.patch ]] || continue
     echo "Applying patch $src..."
-    patch -Np1 < "../$src"
+    if patch -Np1 --dry-run -s < "../$src" >/dev/null; then
+      patch -Np1 < "../$src"
+    elif [[ $src == *bore* ]]; then
+      # Safety net: build with the standard EEVDF scheduler rather than failing
+      warning "BORE patch does not apply to this kernel - building without BORE"
+      [[ -n ${GITHUB_ACTIONS:-} ]] && echo "::warning::BORE patch did not apply to linux $pkgver; built with the standard scheduler"
+      bore=0
+    else
+      error "Patch $src does not apply"
+      return 1
+    fi
   done
 
   echo "Building config (Arch base + Haven fragment)..."
@@ -56,8 +66,9 @@ prepare() {
   make olddefconfig
 
   # Fail loudly if a key Haven option did not survive olddefconfig
-  local opt
-  for opt in CONFIG_NTSYNC CONFIG_SCHED_BORE CONFIG_HZ_1000 CONFIG_SECURITY_APPARMOR; do
+  local opt required=(CONFIG_NTSYNC CONFIG_HZ_1000 CONFIG_SECURITY_APPARMOR)
+  (( bore )) && required+=(CONFIG_SCHED_BORE)
+  for opt in "${required[@]}"; do
     if ! grep -qE "^${opt}=(y|m)" .config; then
       echo "ERROR: ${opt} is not enabled in the final config" >&2
       return 1

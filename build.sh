@@ -82,7 +82,7 @@ setup_host() {
 # post the last 40 lines of output to the run page (logs can be hard to reach).
 as_builder() {
   local logf="$WORK/.last-command.log"
-  if sudo -u builder -H bash -c "$*" 2>&1 | tee "$logf"; then
+  if sudo -u builder -H env GITHUB_ACTIONS="${GITHUB_ACTIONS:-}" bash -c "$*" 2>&1 | tee "$logf"; then
     return 0
   fi
   if [[ -n ${GITHUB_ACTIONS:-} ]]; then

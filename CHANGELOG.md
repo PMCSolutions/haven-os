@@ -7,6 +7,9 @@
 - The build turns on [multilib] in the build container, and the CI signing key is imported inside the container.
 - Package list updated for current Arch: `p7zip` is now `7zip`, and `lib32-openal`, `lib32-sdl2-compat` and `lib32-gst-plugins-base-libs` are removed (no longer in Arch; Steam and Proton bundle them).
 - Removed `game-devices-udev` from the ISO. It's AUR-only, and Steam already provides controller udev rules.
+- **Kernel version:** `KERNEL_SERIES=auto` now builds the exact version CachyOS ships, so the BORE patch applies cleanly. If BORE ever doesn't apply, the build continues with the standard scheduler and shows a warning.
+- **Base kernel config:** now taken from Arch's `linux-headers` package instead of GitLab, which blocks automated downloads.
+- CI shows the last 40 lines of a failing build command on the run page, and kernel.org signing keys fall back to a keyserver.
 - The project home is now https://github.com/PMCSolutions/haven-os, and `HAVEN_REPO_URL` points to its `repo` release.
 
 ## 0.1.3: Windows-style desktop
