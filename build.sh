@@ -38,8 +38,14 @@ if [[ ! -f /etc/arch-release ]]; then
     -v "$ROOT":/haven -w /haven \
     -e GPG_SIGN_KEY="${GPG_SIGN_KEY}" \
     -e GPG_PRIVATE_KEY="${GPG_PRIVATE_KEY:-}" \
+    -e GITHUB_ACTIONS="${GITHUB_ACTIONS:-}" \
     docker.io/archlinux/archlinux:latest \
     bash -c "/haven/build.sh $STAGE"
+fi
+
+if [[ -n ${GITHUB_ACTIONS:-} ]]; then
+  set -E
+  trap 'printf "::error::build.sh failed at line %s: %s\n" "$LINENO" "$BASH_COMMAND"' ERR
 fi
 
 [[ $EUID -eq 0 ]] || die "Run as root (sudo ./build.sh) — mkarchiso needs it."
