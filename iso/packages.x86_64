@@ -94,13 +94,10 @@ lib32-gamemode
 gamescope
 mangohud
 lib32-mangohud
-# Common runtime libraries many Windows games/launchers expect
+# Common runtime libraries (Steam runtime and Proton bundle the rest)
 lib32-pipewire
 lib32-libpulse
 lib32-gnutls
-lib32-openal
-lib32-sdl2-compat
-lib32-gst-plugins-base-libs
 gst-plugins-good
 gst-libav
 # Controllers: Steam ships udev rules for Steam, Xbox and PlayStation pads
@@ -111,5 +108,5 @@ nano
 htop
 fastfetch
 unzip
-p7zip
+7zip
 rsync

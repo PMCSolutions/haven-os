@@ -5,6 +5,7 @@
 - New `./build.sh check` stage: confirms every package in the ISO list exists before the long kernel build.
 - New `./build.sh installer-iso` stage: builds the installer packages and the ISO from kernel packages built in an earlier job.
 - The build turns on [multilib] in the build container, and the CI signing key is imported inside the container.
+- Package list updated for current Arch: `p7zip` is now `7zip`, and `lib32-openal`, `lib32-sdl2-compat` and `lib32-gst-plugins-base-libs` are removed (no longer in Arch; Steam and Proton bundle them).
 - Removed `game-devices-udev` from the ISO. It's AUR-only, and Steam already provides controller udev rules.
 - The project home is now https://github.com/PMCSolutions/haven-os, and `HAVEN_REPO_URL` points to its `repo` release.
 
