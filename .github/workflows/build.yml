@@ -9,6 +9,10 @@ on:
         description: 'Publish a GitHub Release (tag v<OS_VERSION> from haven.conf) and the update repo'
         type: boolean
         default: true
+      kernel_run_id:
+        description: 'Reuse kernel packages from an earlier run (its run ID) instead of recompiling. Leave empty to build the kernel.'
+        type: string
+        default: ''
   push:
     tags: ['v*']
 
@@ -35,6 +39,7 @@ jobs:
   # ---------------------------------------------------------------------------
   kernel:
     needs: check
+    if: ${{ !inputs.kernel_run_id }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
@@ -71,7 +76,9 @@ jobs:
   # 3. Build the installer packages and the ISO (about 1 hour)
   # ---------------------------------------------------------------------------
   iso:
-    needs: kernel
+    needs: [check, kernel]
+    # Runs after a fresh kernel build, or straight away when reusing an earlier kernel
+    if: ${{ always() && needs.check.result == 'success' && (needs.kernel.result == 'success' || needs.kernel.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
@@ -95,6 +102,8 @@ jobs:
         with:
           name: kernel-packages
           path: ${{ env.BUILD_DIR }}/out/repo
+          run-id: ${{ inputs.kernel_run_id || github.run_id }}
+          github-token: ${{ github.token }}
 
       - name: Build installer and ISO
         working-directory: ${{ env.BUILD_DIR }}
@@ -106,7 +115,8 @@ jobs:
       # GitHub release files are limited to 2 GB, so the ISO is split into parts
       - name: Prepare release files
         run: |
-          mkdir -p /mnt/release
+          sudo mkdir -p /mnt/release
+          sudo chown "$USER" /mnt/release
           cd "$BUILD_DIR/out"
           iso=$(ls *.iso | head -n1)
           cp "$iso.sha256" /mnt/release/
